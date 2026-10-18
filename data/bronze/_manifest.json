@@ -4,27 +4,27 @@
     "archivo_origen": "C:\\Users\\HP\\anaconda3\\codigos\\DataE\\customer360\\data\\raw\\clientes.csv",
     "filas": 10,
     "sha256": "372fee41bd46da23e9b74160de7ee6a5d33a1f93e2d570f7a670671c8cb99c8d",
-    "ingestado_en": "2026-10-18T00:57:56.112497+00:00"
+    "ingestado_en": "2026-10-18T01:43:00.093677+00:00"
   },
   {
     "tabla": "servicios",
     "archivo_origen": "C:\\Users\\HP\\anaconda3\\codigos\\DataE\\customer360\\data\\raw\\servicios.csv",
     "filas": 20,
     "sha256": "6d701447aac78b41862c709c5ca10b2335ca2c5fc661dd0b0323ecc86f4c8f19",
-    "ingestado_en": "2026-10-18T00:57:56.146346+00:00"
+    "ingestado_en": "2026-10-18T01:43:00.128197+00:00"
   },
   {
     "tabla": "pagos",
     "archivo_origen": "C:\\Users\\HP\\anaconda3\\codigos\\DataE\\customer360\\data\\raw\\pagos.csv",
     "filas": 30,
     "sha256": "b7f0b5121c9d08f7810b64e192f3c3a51392454a6c6a816e210ebfd85ed5673b",
-    "ingestado_en": "2026-10-18T00:57:56.200806+00:00"
+    "ingestado_en": "2026-10-18T01:43:00.178204+00:00"
   },
   {
     "tabla": "contactos",
     "archivo_origen": "C:\\Users\\HP\\anaconda3\\codigos\\DataE\\customer360\\data\\raw\\contactos.csv",
     "filas": 20,
     "sha256": "41dab3dcdf5c6ec7e3cebfc9926663e8d8eef27d1eee514f795c1c65da60449d",
-    "ingestado_en": "2026-10-18T00:57:56.244617+00:00"
+    "ingestado_en": "2026-10-18T01:43:00.219819+00:00"
   }
 ]
