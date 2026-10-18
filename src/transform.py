@@ -57,13 +57,6 @@ COLUMNAS_SILVER = {
 }
 
 
-# ==========================================================================
-# REGLAS POR TABLA (aquí está la lógica de negocio)
-# Cada función devuelve un SELECT que produce las columnas originales
-# (normalizadas, como texto) + una columna `motivo_rechazo`.
-# ==========================================================================
-
-
 def sql_clientes(ruta_bronze: str) -> str:
     """EJEMPLO RESUELTO. Úsalo como plantilla para las otras tablas."""
     return f"""
@@ -118,28 +111,19 @@ def sql_servicios(ruta_bronze: str) -> str:
     reglas AS (
         SELECT *,
             CASE
-                -- TODO 1: servicio_id nulo o que no cumpla '^S[0-9]{{3}}$'   -> 'id_invalido'
                 WHEN servicio_id IS NULL
                   OR NOT regexp_matches(servicio_id, '^S[0-9]{{3}}$') THEN 'id_invalido'
                 -- Integridad referencial (ya resuelta): el cliente debe existir en Silver.
                 WHEN cliente_id IS NULL
                   OR cliente_id NOT IN (SELECT cliente_id FROM clientes_silver) THEN 'cliente_inexistente'
-
-                -- TODO 2: tipo_servicio nulo                                  -> 'tipo_invalido'
                 WHEN tipo_servicio IS NULL THEN 'tipo_invalido'
-                -- TODO 3: estado nulo o fuera de ACTIVO/VENCIDO/CANCELADO     -> 'estado_invalido'
                 WHEN estado IS NULL
                   OR estado NOT IN ('ACTIVO', 'VENCIDO','CANCELADO')            THEN 'estado_invalido'
-                -- TODO 4: cargo_mensual no numérico o <= 0                    -> 'cargo_invalido'
-                --   Pista: TRY_CAST(cargo_mensual AS DECIMAL(12, 2)) IS NULL OR ... <= 0
                 WHEN TRY_CAST(cargo_mensual AS DECIMAL(12, 2)) IS NULL OR TRY_CAST(cargo_mensual AS DECIMAL(12, 2)) <= 0 THEN 'cargo_invalido'
             END AS motivo_rechazo
         FROM base
     ),
     dedup AS (
-        -- TODO 5: copia el patrón de clientes, particionando por servicio_id.
-        --         Desempate entre válidas: el que quieras, pero DOCUMÉNTALO.
-        -- SELECT *, 1 AS rn FROM reglas   -- <- reemplaza esta línea
         SELECT *,
             ROW_NUMBER() OVER (
                 PARTITION BY servicio_id
@@ -158,17 +142,6 @@ def sql_servicios(ruta_bronze: str) -> str:
 
 
 def sql_pagos(ruta_bronze: str) -> str:
-    # TODO 6: escríbela completa siguiendo el patrón de servicios.
-    #   Columnas: pago_id, cliente_id, fecha_pago, monto, estado
-    #   Reglas sugeridas (en este orden):
-    #     id_invalido          pago_id nulo o no cumple '^P[0-9]{3}$'
-    #     cliente_inexistente  cliente_id nulo o no está en clientes_silver
-    #     fecha_invalida       TRY_CAST(fecha_pago AS DATE) IS NULL
-    #     monto_invalido       no numérico o <= 0
-    #     estado_invalido      fuera de EXITOSO / FALLIDO
-    #     duplicado            pago_id repetido
-    #   Recuerda: dentro de un f-string, las llaves del regex van dobles: {{3}}
-    # raise NotImplementedError("sql_pagos pendiente")
     return f"""
     WITH base AS (
         SELECT
@@ -212,11 +185,6 @@ def sql_pagos(ruta_bronze: str) -> str:
 
 
 def sql_contactos(ruta_bronze: str) -> str:
-    # TODO 7: igual que pagos.
-    #   Columnas: contacto_id, cliente_id, fecha_contacto, canal
-    #   Reglas: id_invalido ('^T[0-9]{3}$'), cliente_inexistente,
-    #           fecha_invalida, canal_invalido (EMAIL / LLAMADA / CHAT), duplicado
-    # raise NotImplementedError("sql_contactos pendiente")
     return f"""
     WITH base AS (
         SELECT
@@ -262,11 +230,6 @@ REGLAS = {
     "pagos": sql_pagos,
     "contactos": sql_contactos,
 }
-
-
-# ==========================================================================
-# PLOMERÍA (resuelta): ejecutar reglas, publicar Parquet, reconciliar.
-# ==========================================================================
 
 
 def procesar_tabla(con, tabla: str, bronze_dir: Path, silver_dir: Path) -> dict:

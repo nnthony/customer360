@@ -69,7 +69,6 @@ def preparar_conexion(con, silver_dir: Path, fecha_corte: date) -> None:
         ruta = (silver_dir / f"{tabla}.parquet").as_posix()
         con.execute(f"CREATE OR REPLACE VIEW {tabla} AS SELECT * FROM '{ruta}'")
 
-    # Igual que tu TMP_FECHA_CORTE de Oracle, pero el valor viene de afuera.
     con.execute("CREATE OR REPLACE TEMP TABLE parametros (fecha_corte DATE)")
     con.execute("INSERT INTO parametros VALUES (?)", [fecha_corte])
 
@@ -149,62 +148,40 @@ def construir_gold(
     }
 
 
-# ==========================================================================
-# Reconciliación entre capas  <-- TU TAREA
-# ==========================================================================
-
-
 def reconciliar(log: dict) -> None:
     """Verifica que los conteos cuadren ENTRE capas.
 
     Cada capa ya se verifica a sí misma por dentro. Esto revisa las costuras:
     que lo que sale de una capa sea exactamente lo que entra a la siguiente.
 
-    Junta TODOS los problemas y los reporta juntos (mejor que arreglar uno,
-    volver a correr, y descubrir el siguiente).
     """
     errores = []
 
     for tabla, filas_bronze in log["bronze"].items():
         s = log["silver"][tabla]
 
-        # TODO 1: lo que Silver leyó (s["entrada"]) debe ser igual a lo que Bronze guardó.
-        #   Si no, agrega un mensaje a `errores`, ej:
-        #   f"{tabla}: bronze={filas_bronze} pero silver leyó {s['entrada']}"
         if filas_bronze != s["entrada"]:
             errores.append(
                 f"{tabla}: bronze={filas_bronze} pero silver leyó {s['entrada']}"
             )
 
-        # TODO 2: s["validos"] + s["rechazados"] debe ser igual a s["entrada"].
-        #   (Ninguna fila desaparece en silencio.)
         if s["entrada"] != s["validos"] + s["rechazados"]:
             errores.append(
                 f"{tabla}: La cantidad de validos y rechazados suma {s['validos'] + s['rechazados']} pero silver tiene de entrada {s['entrada']}"
             )
-
-        # TODO 3 (bonus): sum(s["motivos"].values()) debe ser igual a s["rechazados"].
         if s["rechazados"] != sum(s["motivos"].values()):
             errores.append(
                 f"{tabla}: La cantidad de rechazados es {s['rechazados']} pero la cantidad de motivos suma {sum(s['motivos'].values())}"
             )
 
-    # TODO 4: si ya existe log["gold"], sus filas deben ser iguales a los
-    #   clientes válidos de Silver (log["silver"]["clientes"]["validos"]).
-    #   Pista: if "gold" in log: ...
     if "gold" in log:
         if log["gold"]["filas"] != log["silver"]["clientes"]["validos"]:
             errores.append(
-                f"gold leyó {log['gold']['filas']} filas, pero silver tiene {log['silver']['clientes']['validos']} clientes validos"
+                f"gold: publicó {log['gold']['filas']} filas pero silver tiene {log['silver']['clientes']['validos']} clientes válidos"
             )
 
     if errores:
         raise RuntimeError("Reconciliación fallida:\n  - " + "\n  - ".join(errores))
-
-
-# ==========================================================================
-# Registro de ejecución (punto 6 de la tarea)
-# ==========================================================================
 
 
 def guardar_log(log: dict, logs_dir: Path) -> Path:
@@ -294,8 +271,6 @@ def main(argv=None) -> int:
     try:
         log = run(Path(args.base_dir), args.fecha_corte)
     except Exception as e:
-        # Este es el ÚNICO lugar donde atrapamos "todo": el borde del programa.
-        # No es para esconder el error, es para mostrarlo bien a una persona.
         if args.debug:
             raise
         print(f"ERROR: {type(e).__name__}: {e}", file=sys.stderr)

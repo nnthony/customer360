@@ -42,21 +42,15 @@ def validar_archivos_entrada(raw_dir: Path) -> None:
     for tabla, columnas_esperadas in TABLAS_ESPERADAS.items():
         ruta = raw_dir / f"{tabla}.csv"
 
-        # TODO 1: si `ruta` no existe, lanza FileNotFoundError con un mensaje claro
-        #         que diga QUÉ archivo falta y DÓNDE lo buscaste.
         if not ruta.exists():
             raise FileNotFoundError(
                 f"Falta el archivo '{tabla}.csv' en {raw_dir.resolve()}"
             )
 
-        # TODO 2: obtén los nombres de columnas del CSV.
-        #   Pista: duckdb.sql(f"SELECT * FROM read_csv('{ruta}', all_varchar=true) LIMIT 0").columns
         columnas_reales = duckdb.sql(
             f"SELECT * FROM read_csv('{ruta}', all_varchar=true) LIMIT 0"
         ).columns
 
-        # TODO 3: si columnas_reales != columnas_esperadas, lanza ValueError
-        #         mostrando ambas listas (así el error se diagnostica solo).
         if columnas_reales != columnas_esperadas:
             raise ValueError(
                 f"Columnas inválidas en {tabla}.csv\n"
@@ -67,10 +61,6 @@ def validar_archivos_entrada(raw_dir: Path) -> None:
 
 def contar_filas(ruta_csv: Path) -> int:
     """Devuelve el número de filas de datos (sin contar el encabezado)."""
-    # TODO 4: usa DuckDB para contar.
-    #   Pista: duckdb.sql(f"SELECT COUNT(*) FROM read_csv('{ruta_csv}', all_varchar=true)").fetchone()[0]
-    #   ¿Por qué all_varchar=true? Porque en Bronze no queremos que un valor raro
-    #   (ej. una fecha "31/02/2026") rompa la lectura. Todo es texto aquí.
     numero_filas = duckdb.sql(
         f"SELECT COUNT(*) FROM read_csv('{ruta_csv}', all_varchar=true)"
     ).fetchone()[0]
@@ -91,15 +81,11 @@ def ingestar_tabla(tabla: str, raw_dir: Path, bronze_dir: Path) -> dict:
     origen = raw_dir / f"{tabla}.csv"
     destino = bronze_dir / f"{tabla}.csv"
 
-    # TODO 5: copia el archivo byte a byte (shutil.copy2). Sobrescribir está bien:
-    #         eso hace al pipeline IDEMPOTENTE (correrlo 2 veces = mismo resultado).
     shutil.copy2(origen, destino)
 
     filas_raw = contar_filas(origen)
     filas_bronze = contar_filas(destino)
 
-    # TODO 6: si filas_raw != filas_bronze, lanza un error. Nunca debería pasar,
-    #         pero un pipeline profesional VERIFICA en vez de asumir.
     if filas_raw != filas_bronze:
         raise RuntimeError(
             f"{tabla}: raw tiene {filas_raw} filas y bronze {filas_bronze}"
@@ -123,8 +109,6 @@ def ingestar_todo(raw_dir: Path, bronze_dir: Path) -> dict:
 
     manifiesto = [ingestar_tabla(t, raw_dir, bronze_dir) for t in TABLAS_ESPERADAS]
 
-    # TODO 7: guarda `manifiesto` como JSON en bronze_dir / "_manifest.json"
-    #   Pista: json.dumps(manifiesto, indent=2, ensure_ascii=False)
     ruta_manifiesto = bronze_dir / "_manifest.json"
     ruta_manifiesto.write_text(
         json.dumps(manifiesto, indent=2, ensure_ascii=False), encoding="utf-8"
