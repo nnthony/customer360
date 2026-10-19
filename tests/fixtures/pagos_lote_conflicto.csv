@@ -1,0 +1,3 @@
+pago_id,cliente_id,fecha_pago,monto,estado,fecha_actualizacion
+P031,C004,2026-09-28,120,EXITOSO,2026-10-03 10:00:00
+P031,C004,2026-09-28,110,EXITOSO,2026-10-03 10:00:00

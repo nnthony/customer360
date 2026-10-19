@@ -3,3 +3,6 @@
 /.ruff_cache
 /.pytest_cache
 data/logs/
+data/*.duckdb 
+data/*.duckdb.wal
+customer360.zip
