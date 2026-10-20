@@ -285,15 +285,15 @@ def procesar_tabla(con, tabla: str, bronze_dir: Path, silver_dir: Path) -> dict:
     }
 
 
-def transformar_todo(bronze_dir: Path, silver_dir: Path) -> dict:
-    """Ejecuta la capa Silver completa. Devuelve {tabla: {entrada, validos, ...}}."""
+def transformar_todo(bronze_dir: Path, silver_dir: Path, tablas=None) -> dict:
+    tablas = tablas or ORDEN_TABLAS
     bronze_dir, silver_dir = Path(bronze_dir), Path(silver_dir)
     (silver_dir / "rechazados").mkdir(parents=True, exist_ok=True)
 
     con = duckdb.connect()  # base en memoria: no deja archivos .duckdb
     resultado = {}
     try:
-        for tabla in ORDEN_TABLAS:
+        for tabla in tablas:
             resultado[tabla] = procesar_tabla(con, tabla, bronze_dir, silver_dir)
 
             if tabla == "clientes":

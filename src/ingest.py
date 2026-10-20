@@ -33,13 +33,11 @@ TABLAS_ESPERADAS = {
 }
 
 
-def validar_archivos_entrada(raw_dir: Path) -> None:
-    """Verifica que existan los 4 CSV y que tengan exactamente las columnas esperadas.
+def validar_archivos_entrada(raw_dir: Path, tablas=None) -> None:
+    tablas = tablas or list(TABLAS_ESPERADAS)
+    for tabla in tablas:
+        columnas_esperadas = TABLAS_ESPERADAS[tabla]
 
-    Lanza FileNotFoundError si falta un archivo.
-    Lanza ValueError si las columnas no coinciden.
-    """
-    for tabla, columnas_esperadas in TABLAS_ESPERADAS.items():
         ruta = raw_dir / f"{tabla}.csv"
 
         if not ruta.exists():
@@ -100,14 +98,14 @@ def ingestar_tabla(tabla: str, raw_dir: Path, bronze_dir: Path) -> dict:
     }
 
 
-def ingestar_todo(raw_dir: Path, bronze_dir: Path) -> dict:
-    """Ejecuta la capa Bronze completa. Devuelve {tabla: filas}."""
+def ingestar_todo(raw_dir: Path, bronze_dir: Path, tablas=None) -> dict:
+    tablas = tablas or list(TABLAS_ESPERADAS)
     raw_dir, bronze_dir = Path(raw_dir), Path(bronze_dir)
 
-    validar_archivos_entrada(raw_dir)  # primero validar, luego escribir
+    validar_archivos_entrada(raw_dir, tablas)
     bronze_dir.mkdir(parents=True, exist_ok=True)
 
-    manifiesto = [ingestar_tabla(t, raw_dir, bronze_dir) for t in TABLAS_ESPERADAS]
+    manifiesto = [ingestar_tabla(t, raw_dir, bronze_dir) for t in tablas]
 
     ruta_manifiesto = bronze_dir / "_manifest.json"
     ruta_manifiesto.write_text(

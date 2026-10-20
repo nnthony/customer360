@@ -212,6 +212,19 @@ def run(base_dir: Path, fecha_corte, sql_path: Path = SQL_GOLD) -> dict:
         log["fecha_corte"] = fecha.isoformat()
 
         log["bronze"] = ingestar_todo(base_dir / "raw", base_dir / "bronze")
+
+        # print("=== DIAGNÓSTICO BRONZE ===")
+
+        # for tabla in ("clientes", "servicios", "pagos", "contactos"):
+        #     raw = base_dir / "raw" / f"{tabla}.csv"
+        #     bronze = base_dir / "bronze" / f"{tabla}.csv"
+
+        #     print(
+        #         f"{tabla}: "
+        #         f"RAW={raw.exists()} | "
+        #         f"BRONZE={bronze.exists()}"
+        #     )
+
         log["silver"] = transformar_todo(base_dir / "bronze", base_dir / "silver")
         reconciliar(log)  # costura Bronze -> Silver, antes de construir Gold
 
