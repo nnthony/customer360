@@ -22,7 +22,7 @@ RAW_MINIMO = {
     "pagos": (
         "pago_id,cliente_id,fecha_pago,monto,estado\n"
         "P001,C001,2026-09-05,50,EXITOSO\n"
-        "P002,C999,2026-09-05,50,EXITOSO\n"          # cliente inexistente -> rechazado
+        "P002,C999,2026-09-05,50,EXITOSO\n"  # cliente inexistente -> rechazado
     ),
     "contactos": "contacto_id,cliente_id,fecha_contacto,canal\nT001,C001,2026-09-01,EMAIL\n",
 }
@@ -38,7 +38,10 @@ def base(tmp_path: Path) -> Path:
 
 
 def logs_de(base: Path) -> list[dict]:
-    return [json.loads(p.read_text(encoding="utf-8")) for p in sorted((base / "logs").glob("run_*.json"))]
+    return [
+        json.loads(p.read_text(encoding="utf-8"))
+        for p in sorted((base / "logs").glob("run_*.json"))
+    ]
 
 
 # --------------------------------------------------------------------------
@@ -51,7 +54,7 @@ def test_run_completo_genera_todas_las_capas(base):
     assert log["bronze"] == {"clientes": 2, "servicios": 1, "pagos": 2, "contactos": 1}
     assert log["silver"]["pagos"]["rechazados"] == 1
     assert log["gold"]["filas"] == 2
-    assert log["gold"]["elegibles"] == 1          # C001 sí, C002 inactivo
+    assert log["gold"]["elegibles"] == 1  # C001 sí, C002 inactivo
     assert (base / "gold" / "customer360.parquet").exists()
     assert (base / "gold" / "customer360.csv").exists()
 
@@ -115,7 +118,12 @@ LOG_CUADRA = {
     "bronze": {"clientes": 2, "pagos": 3},
     "silver": {
         "clientes": {"entrada": 2, "validos": 2, "rechazados": 0, "motivos": {}},
-        "pagos": {"entrada": 3, "validos": 2, "rechazados": 1, "motivos": {"duplicado": 1}},
+        "pagos": {
+            "entrada": 3,
+            "validos": 2,
+            "rechazados": 1,
+            "motivos": {"duplicado": 1},
+        },
     },
     "gold": {"filas": 2},
 }
@@ -141,7 +149,7 @@ def test_reconciliacion_detecta_bronze_distinto_de_silver():
 
 def test_reconciliacion_detecta_filas_perdidas_en_silver():
     log = copy.deepcopy(LOG_CUADRA)
-    log["silver"]["pagos"]["validos"] = 1          # 1 + 1 != 3
+    log["silver"]["pagos"]["validos"] = 1  # 1 + 1 != 3
     with pytest.raises(RuntimeError, match="pagos"):
         reconciliar(log)
 
@@ -162,8 +170,8 @@ def test_reconciliacion_detecta_gold_distinto_de_clientes():
 
 def test_reconciliacion_reporta_todos_los_errores_juntos():
     log = copy.deepcopy(LOG_CUADRA)
-    log["silver"]["clientes"]["validos"] = 1       # error en clientes
-    log["silver"]["pagos"]["validos"] = 1          # error en pagos
+    log["silver"]["clientes"]["validos"] = 1  # error en clientes
+    log["silver"]["pagos"]["validos"] = 1  # error en pagos
     with pytest.raises(RuntimeError) as exc:
         reconciliar(log)
     assert "clientes" in str(exc.value) and "pagos" in str(exc.value)
@@ -194,6 +202,6 @@ def test_cli_modo_debug_muestra_la_excepcion(base):
 
 
 def test_cli_exige_fecha_de_corte(base):
-    with pytest.raises(SystemExit) as exc:      # argparse sale con código 2
+    with pytest.raises(SystemExit) as exc:  # argparse sale con código 2
         main(["--base-dir", str(base)])
     assert exc.value.code == 2

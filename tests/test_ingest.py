@@ -37,8 +37,7 @@ CSV_PRUEBA = {
         "S003,C002,TV,CANCELADO,40\n"
     ),
     "pagos": (
-        "pago_id,cliente_id,fecha_pago,monto,estado\n"
-        "P001,C001,2026-09-05,50,EXITOSO\n"
+        "pago_id,cliente_id,fecha_pago,monto,estado\nP001,C001,2026-09-05,50,EXITOSO\n"
     ),
     "contactos": (
         "contacto_id,cliente_id,fecha_contacto,canal\n"
@@ -94,9 +93,8 @@ def test_bronze_no_interpreta_valores_raros(dirs):
     raw_dir, bronze_dir = dirs
     (raw_dir / "pagos.csv").write_text(
         "pago_id,cliente_id,fecha_pago,monto,estado\n"
-        "P001,C001,31/02/2026,abc,EXITOSO\n"   # fecha imposible y monto no numérico
-        "P002,,2026-09-05,-10,RARO\n"          # id vacío, monto negativo, estado raro
-        ,
+        "P001,C001,31/02/2026,abc,EXITOSO\n"  # fecha imposible y monto no numérico
+        "P002,,2026-09-05,-10,RARO\n",  # id vacío, monto negativo, estado raro
         encoding="utf-8",
     )
     conteos = ingestar_todo(raw_dir, bronze_dir)
@@ -168,7 +166,7 @@ def test_falla_si_falta_un_archivo(dirs, tabla_faltante):
 def test_falla_si_cambia_una_columna(dirs):
     raw_dir, bronze_dir = dirs
     (raw_dir / "pagos.csv").write_text(
-        "pago_id,cliente_id,fecha_pago,importe,estado\n"   # 'monto' -> 'importe'
+        "pago_id,cliente_id,fecha_pago,importe,estado\n"  # 'monto' -> 'importe'
         "P001,C001,2026-09-05,50,EXITOSO\n",
         encoding="utf-8",
     )

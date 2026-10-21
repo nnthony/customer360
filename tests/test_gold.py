@@ -71,7 +71,11 @@ def test_no_hay_fan_out(tmp_path):
     g = correr(
         tmp_path,
         clientes=["C001,2025-01-10,ACTIVO"],
-        servicios=["S001,C001,TV,ACTIVO,10", "S002,C001,TV,ACTIVO,20", "S003,C001,TV,ACTIVO,30"],
+        servicios=[
+            "S001,C001,TV,ACTIVO,10",
+            "S002,C001,TV,ACTIVO,20",
+            "S003,C001,TV,ACTIVO,30",
+        ],
         pagos=["P001,C001,2026-09-10,100,EXITOSO", "P002,C001,2026-09-20,100,EXITOSO"],
         contactos=["T001,C001,2026-09-10,EMAIL", "T002,C001,2026-09-20,CHAT"],
     )
@@ -90,7 +94,11 @@ def test_solo_servicios_activos_suman_cargo(tmp_path):
     g = correr(
         tmp_path,
         clientes=["C001,2025-01-10,ACTIVO"],
-        servicios=["S001,C001,TV,ACTIVO,50", "S002,C001,TV,CANCELADO,40", "S003,C001,TV,VENCIDO,30"],
+        servicios=[
+            "S001,C001,TV,ACTIVO,50",
+            "S002,C001,TV,CANCELADO,40",
+            "S003,C001,TV,VENCIDO,30",
+        ],
     )
     assert g["C001"]["cantidad_servicios_activos"] == 1
     assert g["C001"]["cargo_mensual_total"] == 50
@@ -104,10 +112,10 @@ def test_ventana_90_dias_y_ultimo_pago(tmp_path):
         tmp_path,
         clientes=["C001,2025-01-10,ACTIVO"],
         pagos=[
-            "P001,C001,2026-07-02,10,EXITOSO",   # día 91 -> fuera
-            "P002,C001,2026-07-03,20,EXITOSO",   # día 90 -> dentro
-            "P003,C001,2026-09-30,30,EXITOSO",   # día de corte -> dentro
-            "P004,C001,2026-10-01,40,EXITOSO",   # posterior al corte -> fuera
+            "P001,C001,2026-07-02,10,EXITOSO",  # día 91 -> fuera
+            "P002,C001,2026-07-03,20,EXITOSO",  # día 90 -> dentro
+            "P003,C001,2026-09-30,30,EXITOSO",  # día de corte -> dentro
+            "P004,C001,2026-10-01,40,EXITOSO",  # posterior al corte -> fuera
             "P005,C001,2026-09-29,999,FALLIDO",  # fallido -> nunca cuenta
         ],
     )
@@ -117,7 +125,11 @@ def test_ventana_90_dias_y_ultimo_pago(tmp_path):
 
 def test_ultimo_pago_exitoso_puede_ser_antiguo(tmp_path):
     """El último pago exitoso NO está limitado a 90 días."""
-    g = correr(tmp_path, clientes=["C001,2025-01-10,ACTIVO"], pagos=["P001,C001,2026-01-15,10,EXITOSO"])
+    g = correr(
+        tmp_path,
+        clientes=["C001,2025-01-10,ACTIVO"],
+        pagos=["P001,C001,2026-01-15,10,EXITOSO"],
+    )
     assert g["C001"]["ultimo_pago_exitoso"] == date(2026, 1, 15)
     assert g["C001"]["monto_pagado_90d"] == 0
 
@@ -130,10 +142,10 @@ def test_ventana_30_dias(tmp_path):
         tmp_path,
         clientes=["C001,2025-01-10,ACTIVO"],
         contactos=[
-            "T001,C001,2026-08-31,EMAIL",   # día 31 -> fuera
-            "T002,C001,2026-09-01,EMAIL",   # día 30 -> dentro
-            "T003,C001,2026-09-30,EMAIL",   # día de corte -> dentro
-            "T004,C001,2026-10-01,EMAIL",   # futuro -> fuera
+            "T001,C001,2026-08-31,EMAIL",  # día 31 -> fuera
+            "T002,C001,2026-09-01,EMAIL",  # día 30 -> dentro
+            "T003,C001,2026-09-30,EMAIL",  # día de corte -> dentro
+            "T004,C001,2026-10-01,EMAIL",  # futuro -> fuera
         ],
     )
     assert g["C001"]["contactos_30d"] == 2
@@ -144,14 +156,22 @@ def test_ventana_30_dias(tmp_path):
 # --------------------------------------------------------------------------
 def test_cliente_sin_contactos_es_elegible(tmp_path):
     """Regresión del bug de tu consulta Oracle: NULL < 2 no es TRUE."""
-    g = correr(tmp_path, clientes=["C001,2025-01-10,ACTIVO"], servicios=["S001,C001,TV,ACTIVO,50"])
+    g = correr(
+        tmp_path,
+        clientes=["C001,2025-01-10,ACTIVO"],
+        servicios=["S001,C001,TV,ACTIVO,50"],
+    )
     assert g["C001"]["contactos_30d"] == 0
     assert g["C001"]["es_elegible"] is True
 
 
 def test_cliente_inactivo_no_es_elegible(tmp_path):
     """Regresión del caso C009: inactivo con servicio activo."""
-    g = correr(tmp_path, clientes=["C001,2025-01-10,INACTIVO"], servicios=["S001,C001,TV,ACTIVO,50"])
+    g = correr(
+        tmp_path,
+        clientes=["C001,2025-01-10,INACTIVO"],
+        servicios=["S001,C001,TV,ACTIVO,50"],
+    )
     assert g["C001"]["es_elegible"] is False
 
 
@@ -164,7 +184,9 @@ def test_servicio_vencido_quita_elegibilidad(tmp_path):
     assert g["C001"]["es_elegible"] is False
 
 
-@pytest.mark.parametrize("n_contactos, elegible", [(0, True), (1, True), (2, False), (3, False)])
+@pytest.mark.parametrize(
+    "n_contactos, elegible", [(0, True), (1, True), (2, False), (3, False)]
+)
 def test_limite_de_contactos(tmp_path, n_contactos, elegible):
     contactos = [f"T00{i},C001,2026-09-1{i},EMAIL" for i in range(1, n_contactos + 1)]
     g = correr(tmp_path, clientes=["C001,2025-01-10,ACTIVO"], contactos=contactos)
@@ -192,14 +214,19 @@ def test_verificacion_detecta_clientes_duplicados(tmp_path):
     """Un SQL que duplica filas NO debe publicarse."""
     correr(tmp_path)  # genera silver válido
     sql_malo = tmp_path / "malo.sql"
-    sql_malo.write_text("""
+    sql_malo.write_text(
+        """
         SELECT cliente_id, 0 AS cantidad_servicios_activos, 0 AS cargo_mensual_total,
                NULL::DATE AS ultimo_pago_exitoso, 0 AS monto_pagado_90d,
                0 AS contactos_30d, TRUE AS es_elegible
         FROM clientes, (VALUES (1), (2)) t(x)
-    """, encoding="utf-8")
+    """,
+        encoding="utf-8",
+    )
     with pytest.raises(RuntimeError, match="una fila por cliente"):
-        construir_gold(tmp_path / "silver", tmp_path / "gold_malo", FECHA_CORTE, sql_malo)
+        construir_gold(
+            tmp_path / "silver", tmp_path / "gold_malo", FECHA_CORTE, sql_malo
+        )
     assert not (tmp_path / "gold_malo" / "customer360.parquet").exists()
 
 
@@ -211,16 +238,16 @@ def test_verificacion_detecta_clientes_duplicados(tmp_path):
 # C001 pasa a False: cambia el SQL, este valor y el README.
 ESPERADO = {
     #        serv  cargo  ultimo_pago          m90  c30  elegible
-    "C001": (0,    0,     date(2026, 9, 5),    50,  0,   True),
-    "C002": (3,    200,   date(2026, 9, 10),   300, 1,   True),
-    "C003": (1,    90,    date(2026, 9, 15),   90,  1,   False),  # servicio vencido
-    "C004": (1,    120,   None,                0,   0,   True),   # sin pagos
-    "C005": (1,    80,    date(2026, 9, 20),   160, 2,   False),  # 2 contactos
-    "C006": (2,    145,   date(2026, 9, 1),    290, 0,   True),   # 07-03 entra, 07-02 no
-    "C007": (1,    70,    date(2026, 9, 5),    140, 1,   True),   # 08-31 no entra
-    "C008": (2,    155,   date(2026, 9, 30),   310, 2,   False),  # 2 contactos
-    "C009": (1,    90,    date(2026, 9, 12),   180, 1,   False),  # cliente INACTIVO
-    "C010": (4,    245,   date(2026, 9, 25),   980, 4,   False),  # 4 contactos
+    "C001": (0, 0, date(2026, 9, 5), 50, 0, True),
+    "C002": (3, 200, date(2026, 9, 10), 300, 1, True),
+    "C003": (1, 90, date(2026, 9, 15), 90, 1, False),  # servicio vencido
+    "C004": (1, 120, None, 0, 0, True),  # sin pagos
+    "C005": (1, 80, date(2026, 9, 20), 160, 2, False),  # 2 contactos
+    "C006": (2, 145, date(2026, 9, 1), 290, 0, True),  # 07-03 entra, 07-02 no
+    "C007": (1, 70, date(2026, 9, 5), 140, 1, True),  # 08-31 no entra
+    "C008": (2, 155, date(2026, 9, 30), 310, 2, False),  # 2 contactos
+    "C009": (1, 90, date(2026, 9, 12), 180, 1, False),  # cliente INACTIVO
+    "C010": (4, 245, date(2026, 9, 25), 980, 4, False),  # 4 contactos
 }
 
 
@@ -234,7 +261,9 @@ def test_golden_datos_reales(tmp_path):
     assert log["gold"]["filas"] == 10
     assert log["gold"]["elegibles"] == 5
 
-    rel = duckdb.sql(f"SELECT * FROM '{(tmp_path / 'gold' / 'customer360.parquet').as_posix()}'")
+    rel = duckdb.sql(
+        f"SELECT * FROM '{(tmp_path / 'gold' / 'customer360.parquet').as_posix()}'"
+    )
     obtenido = {fila[0]: tuple(fila[1:]) for fila in rel.fetchall()}
     for cliente_id, esperado in ESPERADO.items():
         assert obtenido[cliente_id] == esperado, cliente_id

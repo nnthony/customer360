@@ -49,7 +49,9 @@ def entorno(tmp_path: Path):
 
 
 def leer(ruta: Path, columnas: str = "*") -> list[tuple]:
-    return duckdb.sql(f"SELECT {columnas} FROM '{ruta.as_posix()}' ORDER BY 1").fetchall()
+    return duckdb.sql(
+        f"SELECT {columnas} FROM '{ruta.as_posix()}' ORDER BY 1"
+    ).fetchall()
 
 
 # --------------------------------------------------------------------------
@@ -65,7 +67,11 @@ def test_datos_limpios_no_generan_rechazos(entorno):
 
 def test_reconciliacion_cuadra_en_todas_las_tablas(entorno):
     bronze_dir, silver_dir = entorno
-    escribir_csv(bronze_dir, "pagos", FILAS_VALIDAS["pagos"] + ["P002,C999,2026-09-05,50,EXITOSO"])
+    escribir_csv(
+        bronze_dir,
+        "pagos",
+        FILAS_VALIDAS["pagos"] + ["P002,C999,2026-09-05,50,EXITOSO"],
+    )
     res = transformar_todo(bronze_dir, silver_dir)
     for tabla, r in res.items():
         assert r["entrada"] == r["validos"] + r["rechazados"], tabla
@@ -77,14 +83,19 @@ def test_silver_publica_tipos_correctos(entorno):
 
     def tipos(tabla):
         ruta = (silver_dir / f"{tabla}.parquet").as_posix()
-        return {fila[0]: fila[1] for fila in duckdb.sql(f"DESCRIBE SELECT * FROM '{ruta}'").fetchall()}
+        return {
+            fila[0]: fila[1]
+            for fila in duckdb.sql(f"DESCRIBE SELECT * FROM '{ruta}'").fetchall()
+        }
 
     assert tipos("clientes")["fecha_alta"] == "DATE"
     assert tipos("pagos")["fecha_pago"] == "DATE"
     assert tipos("pagos")["monto"] == "DECIMAL(12,2)"
     assert tipos("servicios")["cargo_mensual"] == "DECIMAL(12,2)"
     assert tipos("contactos")["fecha_contacto"] == "DATE"
-    assert "motivo_rechazo" not in tipos("pagos"), "Silver no debe exponer la columna técnica"
+    assert "motivo_rechazo" not in tipos("pagos"), (
+        "Silver no debe exponer la columna técnica"
+    )
 
 
 def test_normaliza_espacios_y_mayusculas(entorno):
@@ -92,7 +103,9 @@ def test_normaliza_espacios_y_mayusculas(entorno):
     escribir_csv(bronze_dir, "pagos", ["  P001 , C001 , 2026-09-05 , 50 ,  exitoso "])
     res = transformar_todo(bronze_dir, silver_dir)
     assert res["pagos"]["validos"] == 1
-    assert leer(silver_dir / "pagos.parquet", "pago_id, estado") == [("P001", "EXITOSO")]
+    assert leer(silver_dir / "pagos.parquet", "pago_id, estado") == [
+        ("P001", "EXITOSO")
+    ]
 
 
 # --------------------------------------------------------------------------
@@ -102,15 +115,15 @@ def test_normaliza_espacios_y_mayusculas(entorno):
     "fila_mala, motivo",
     [
         ("PX01,C001,2026-09-05,50,EXITOSO", "id_invalido"),
-        (",C001,2026-09-05,50,EXITOSO", "id_invalido"),          # id vacío -> NULL
+        (",C001,2026-09-05,50,EXITOSO", "id_invalido"),  # id vacío -> NULL
         ("P002,C999,2026-09-05,50,EXITOSO", "cliente_inexistente"),
-        ("P002,,2026-09-05,50,EXITOSO", "cliente_inexistente"),   # cliente vacío
+        ("P002,,2026-09-05,50,EXITOSO", "cliente_inexistente"),  # cliente vacío
         ("P002,C001,31/02/2026,50,EXITOSO", "fecha_invalida"),
         ("P002,C001,2026-09-05,abc,EXITOSO", "monto_invalido"),
-        ("P002,C001,2026-09-05,0,EXITOSO", "monto_invalido"),     # monto 0
+        ("P002,C001,2026-09-05,0,EXITOSO", "monto_invalido"),  # monto 0
         ("P002,C001,2026-09-05,-10,EXITOSO", "monto_invalido"),
         ("P002,C001,2026-09-05,50,RARO", "estado_invalido"),
-        ("P002,C001,2026-09-05,50,", "estado_invalido"),          # trampa NULL NOT IN
+        ("P002,C001,2026-09-05,50,", "estado_invalido"),  # trampa NULL NOT IN
     ],
 )
 def test_reglas_de_pagos(entorno, fila_mala, motivo):
@@ -124,7 +137,10 @@ def test_reglas_de_pagos(entorno, fila_mala, motivo):
 @pytest.mark.parametrize(
     "fila_mala, motivo",
     [
-        ("X001,C001,INTERNET,ACTIVO,100", "id_invalido"),     # regresión: validaba cliente_id
+        (
+            "X001,C001,INTERNET,ACTIVO,100",
+            "id_invalido",
+        ),  # regresión: validaba cliente_id
         ("S002,C999,INTERNET,ACTIVO,100", "cliente_inexistente"),
         ("S002,C001,,ACTIVO,100", "tipo_invalido"),
         ("S002,C001,TV,PENDIENTE,100", "estado_invalido"),
@@ -144,7 +160,7 @@ def test_reglas_de_servicios(entorno, fila_mala, motivo):
     [
         ("T1,C001,2026-09-01,EMAIL", "id_invalido"),
         ("T002,C999,2026-09-01,EMAIL", "cliente_inexistente"),
-        ("T002,C001,2026-13-01,EMAIL", "fecha_invalida"),     # mes 13
+        ("T002,C001,2026-13-01,EMAIL", "fecha_invalida"),  # mes 13
         ("T002,C001,2026-09-01,WHATSAPP", "canal_invalido"),
         ("T002,C001,2026-09-01,", "canal_invalido"),
     ],
@@ -159,7 +175,7 @@ def test_reglas_de_contactos(entorno, fila_mala, motivo):
 @pytest.mark.parametrize(
     "fila_mala, motivo",
     [
-        ("c003,2025-01-10,ACTIVO", "id_invalido"),            # minúscula: el ID no se normaliza
+        ("c003,2025-01-10,ACTIVO", "id_invalido"),  # minúscula: el ID no se normaliza
         ("C003,10/01/2025,ACTIVO", "fecha_invalida"),
         ("C003,2025-01-10,SUSPENDIDO", "estado_invalido"),
     ],
@@ -185,10 +201,14 @@ def test_duplicado_exacto_deja_una_sola_fila(entorno):
 def test_duplicado_con_copia_mala_conserva_la_buena(entorno):
     """Regresión del bug 2: sin `motivo_rechazo IS NOT NULL` se perdían las dos."""
     bronze_dir, silver_dir = entorno
-    escribir_csv(bronze_dir, "pagos", [
-        "P001,C001,2026-09-05,abc,EXITOSO",   # copia mala, va PRIMERO en el archivo
-        "P001,C001,2026-09-05,50,EXITOSO",    # copia buena
-    ])
+    escribir_csv(
+        bronze_dir,
+        "pagos",
+        [
+            "P001,C001,2026-09-05,abc,EXITOSO",  # copia mala, va PRIMERO en el archivo
+            "P001,C001,2026-09-05,50,EXITOSO",  # copia buena
+        ],
+    )
     res = transformar_todo(bronze_dir, silver_dir)
     assert res["pagos"]["validos"] == 1
     assert res["pagos"]["motivos"] == {"monto_invalido": 1}
@@ -198,10 +218,14 @@ def test_duplicado_con_copia_mala_conserva_la_buena(entorno):
 def test_dedup_servicios_compara_cargo_como_numero(entorno):
     """Regresión del bug 2b: como texto, '90' > '150'. Debe ganar 150."""
     bronze_dir, silver_dir = entorno
-    escribir_csv(bronze_dir, "servicios", [
-        "S001,C001,INTERNET,ACTIVO,90",
-        "S001,C001,INTERNET,ACTIVO,150",
-    ])
+    escribir_csv(
+        bronze_dir,
+        "servicios",
+        [
+            "S001,C001,INTERNET,ACTIVO,90",
+            "S001,C001,INTERNET,ACTIVO,150",
+        ],
+    )
     transformar_todo(bronze_dir, silver_dir)
     assert leer(silver_dir / "servicios.parquet", "cargo_mensual") == [(150,)]
 
@@ -212,11 +236,17 @@ def test_dedup_servicios_compara_cargo_como_numero(entorno):
 def test_hijas_validan_contra_clientes_limpios(entorno):
     """Si un cliente es rechazado en Silver, sus pagos también deben caer."""
     bronze_dir, silver_dir = entorno
-    escribir_csv(bronze_dir, "clientes", ["C001,2025-01-10,ACTIVO", "C002,2025-02-15,RARO"])
-    escribir_csv(bronze_dir, "pagos", [
-        "P001,C001,2026-09-05,50,EXITOSO",
-        "P002,C002,2026-09-05,50,EXITOSO",
-    ])
+    escribir_csv(
+        bronze_dir, "clientes", ["C001,2025-01-10,ACTIVO", "C002,2025-02-15,RARO"]
+    )
+    escribir_csv(
+        bronze_dir,
+        "pagos",
+        [
+            "P001,C001,2026-09-05,50,EXITOSO",
+            "P002,C002,2026-09-05,50,EXITOSO",
+        ],
+    )
     res = transformar_todo(bronze_dir, silver_dir)
     assert res["clientes"]["motivos"] == {"estado_invalido": 1}
     assert res["pagos"]["motivos"] == {"cliente_inexistente": 1}
@@ -224,9 +254,16 @@ def test_hijas_validan_contra_clientes_limpios(entorno):
 
 def test_rechazados_conservan_valor_original_y_motivo(entorno):
     bronze_dir, silver_dir = entorno
-    escribir_csv(bronze_dir, "pagos", FILAS_VALIDAS["pagos"] + ["P002,C001,31/02/2026,50,EXITOSO"])
+    escribir_csv(
+        bronze_dir,
+        "pagos",
+        FILAS_VALIDAS["pagos"] + ["P002,C001,31/02/2026,50,EXITOSO"],
+    )
     transformar_todo(bronze_dir, silver_dir)
-    filas = leer(silver_dir / "rechazados" / "pagos.parquet", "pago_id, fecha_pago, motivo_rechazo")
+    filas = leer(
+        silver_dir / "rechazados" / "pagos.parquet",
+        "pago_id, fecha_pago, motivo_rechazo",
+    )
     assert filas == [("P002", "31/02/2026", "fecha_invalida")]
 
 
@@ -235,7 +272,11 @@ def test_rechazados_conservan_valor_original_y_motivo(entorno):
 # --------------------------------------------------------------------------
 def test_ejecutar_dos_veces_da_el_mismo_silver(entorno):
     bronze_dir, silver_dir = entorno
-    escribir_csv(bronze_dir, "pagos", FILAS_VALIDAS["pagos"] + ["P002,C999,2026-09-05,50,EXITOSO"])
+    escribir_csv(
+        bronze_dir,
+        "pagos",
+        FILAS_VALIDAS["pagos"] + ["P002,C999,2026-09-05,50,EXITOSO"],
+    )
 
     res_1 = transformar_todo(bronze_dir, silver_dir)
     datos_1 = {t: leer(silver_dir / f"{t}.parquet") for t in ORDEN_TABLAS}

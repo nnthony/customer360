@@ -58,7 +58,9 @@ def estado_completo(con) -> tuple:
     """TODO lo que debe quedar idéntico al reejecutar: pagos con linaje + rechazados."""
     return (
         con.execute("SELECT * FROM silver_pagos ORDER BY pago_id").fetchall(),
-        con.execute("SELECT * FROM silver_pagos_rechazados ORDER BY batch_id, pago_id").fetchall(),
+        con.execute(
+            "SELECT * FROM silver_pagos_rechazados ORDER BY batch_id, pago_id"
+        ).fetchall(),
     )
 
 
@@ -67,7 +69,11 @@ def estado_completo(con) -> tuple:
 # --------------------------------------------------------------------------
 def test_carga_inicial(con, tmp_path):
     r = aplicar(con, tmp_path, INICIAL)
-    assert (r["registros_insertados"], r["registros_actualizados"], r["registros_ignorados"]) == (30, 0, 0)
+    assert (
+        r["registros_insertados"],
+        r["registros_actualizados"],
+        r["registros_ignorados"],
+    ) == (30, 0, 0)
     assert len(pagos(con)) == 30
 
 
@@ -75,33 +81,39 @@ def test_lote_001_aplica_inserciones_y_correcciones(con, tmp_path):
     r = aplicar(con, tmp_path, INICIAL, LOTE_001)
     p = pagos(con)
 
-    assert (r["registros_insertados"], r["registros_actualizados"],
-            r["registros_ignorados"], r["registros_rechazados"]) == (2, 2, 3, 1)
+    assert (
+        r["registros_insertados"],
+        r["registros_actualizados"],
+        r["registros_ignorados"],
+        r["registros_rechazados"],
+    ) == (2, 2, 3, 1)
     assert len(p) == 32
-    assert p["P003"][2] == 180                 # corrección de monto
-    assert p["P024"][3] == "EXITOSO"           # corrección de estado
-    assert "P033" not in p                     # rechazado (cliente inexistente)
+    assert p["P003"][2] == 180  # corrección de monto
+    assert p["P024"][3] == "EXITOSO"  # corrección de estado
+    assert "P033" not in p  # rechazado (cliente inexistente)
 
 
 def test_linaje_solo_cambia_en_lo_que_se_escribio(con, tmp_path):
     aplicar(con, tmp_path, INICIAL, LOTE_001)
     linaje = dict(con.execute("SELECT pago_id, batch_id FROM silver_pagos").fetchall())
-    assert linaje["P003"] == "lote_001"        # actualizado
-    assert linaje["P031"] == "lote_001"        # insertado
-    assert linaje["P001"] == "inicial"         # ignorado: no se tocó
+    assert linaje["P003"] == "lote_001"  # actualizado
+    assert linaje["P031"] == "lote_001"  # insertado
+    assert linaje["P001"] == "inicial"  # ignorado: no se tocó
 
 
 def test_lote_002_version_antigua_no_sobrescribe(con, tmp_path):
     aplicar(con, tmp_path, INICIAL, LOTE_001, LOTE_002)
     p = pagos(con)
     assert len(p) == 33
-    assert p["P003"][2] == 170                 # segunda corrección
-    assert p["P024"][3] == "EXITOSO"           # el FALLIDO del 25/09 llegó tarde: ignorado
+    assert p["P003"][2] == 170  # segunda corrección
+    assert p["P024"][3] == "EXITOSO"  # el FALLIDO del 25/09 llegó tarde: ignorado
 
 
 def test_rechazados_quedan_registrados(con, tmp_path):
     aplicar(con, tmp_path, INICIAL, LOTE_001)
-    rech = con.execute("SELECT batch_id, pago_id, motivo_rechazo FROM silver_pagos_rechazados").fetchall()
+    rech = con.execute(
+        "SELECT batch_id, pago_id, motivo_rechazo FROM silver_pagos_rechazados"
+    ).fetchall()
     assert rech == [("lote_001", "P033", "cliente_inexistente")]
 
 
@@ -143,7 +155,12 @@ def test_fallo_antes_del_commit_conserva_el_estado_anterior(con, tmp_path):
     def fallar(c):
         # Prueba de que el fallo ocurre en el PEOR momento:
         # dentro de la transacción, el nuevo estado YA está escrito...
-        assert c.execute("SELECT monto FROM silver_pagos WHERE pago_id = 'P003'").fetchone()[0] == 180
+        assert (
+            c.execute(
+                "SELECT monto FROM silver_pagos WHERE pago_id = 'P003'"
+            ).fetchone()[0]
+            == 180
+        )
         raise FalloSimuladoError("corte de luz simulado")
 
     with pytest.raises(FalloSimuladoError):
@@ -164,7 +181,7 @@ def test_reintento_despues_de_un_fallo_funciona(con, tmp_path):
     with pytest.raises(FalloSimuladoError):
         aplicar(con, tmp_path, LOTE_001, antes_de_commit=fallar)
 
-    r = aplicar(con, tmp_path, LOTE_001)       # reintento sin fallo
+    r = aplicar(con, tmp_path, LOTE_001)  # reintento sin fallo
     assert (r["registros_insertados"], r["registros_actualizados"]) == (2, 2)
     assert pagos(con)["P003"][2] == 180
 
@@ -174,7 +191,10 @@ def test_conflicto_no_toca_el_estado(con, tmp_path):
     antes = estado_completo(con)
 
     lote = tmp_path / "pagos_lote_900.csv"
-    lote.write_text(ENCABEZADO + "\nP031,C004,2026-09-28,110,EXITOSO,2026-10-01 09:00:00\n", encoding="utf-8")
+    lote.write_text(
+        ENCABEZADO + "\nP031,C004,2026-09-28,110,EXITOSO,2026-10-01 09:00:00\n",
+        encoding="utf-8",
+    )
     with pytest.raises(ConflictoLoteError):
         aplicar(con, tmp_path, lote)
 
