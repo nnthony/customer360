@@ -283,7 +283,9 @@ def test_7_fallo_parcial(base):
     assert ultima_auditoria(base)[:2] == ("lote_101", "FAILED")
 
     # Entonces: el SUCCESS que existía dentro de la transacción fue deshecho
-    estados = consultar(base, "SELECT estado FROM auditoria_ejecuciones WHERE batch_id = 'lote_101'")
+    estados = consultar(
+        base, "SELECT estado FROM auditoria_ejecuciones WHERE batch_id = 'lote_101'"
+    )
     assert estados == [("FAILED",)]
 
     segundo_estado = estado_completo(base)
@@ -308,7 +310,10 @@ def test_8_gold_actualizado(base):
     assert monto_90d(base, "C010") == 980
 
     # Cuando: P024 se corrige a EXITOSO
-    aplicar(base, lote(base, "lote_102", "P024,C010,2026-09-20,100,EXITOSO,2026-10-01 10:00:00"))
+    aplicar(
+        base,
+        lote(base, "lote_102", "P024,C010,2026-09-20,100,EXITOSO,2026-10-01 10:00:00"),
+    )
 
     # Entonces: ahora sí suma
     assert monto_90d(base, "C010") == 1080
