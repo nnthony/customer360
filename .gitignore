@@ -1,8 +1,34 @@
-/env
-**/__pycache__/
-/.ruff_cache
-/.pytest_cache
+# --- Entornos virtuales -------------------------------------------------------
+/env/
+.venv/
+venv/
+
+# --- Cachés de Python y herramientas -----------------------------------------
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# --- Artefactos GENERADOS por el pipeline (se regeneran desde data/raw) ------
+# Bronze, Silver y Gold son salidas: se recrean ejecutando el pipeline.
+data/bronze/
+data/silver/
+data/gold/
 data/logs/
-data/*.duckdb 
-data/*.duckdb.wal
+
+# Estado DuckDB (base oficial local) y su write-ahead log
+*.duckdb
+*.duckdb.wal
+
+# Temporales de la exportación atómica (exportar_gold)
+*.tmp
+
+# --- Varios --------------------------------------------------------------------
 customer360.zip
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# NOTA: data/raw/ SÍ se versiona: son los datos de entrada de ejemplo que
+# usan el pipeline y las pruebas. Sin ellos el proyecto no es reproducible.
