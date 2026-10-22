@@ -18,8 +18,8 @@ jobs:
       - name: Instalar Python 3.10
         uses: actions/setup-python@v6
         with:
-          python-version: "3.10"   
-          cache: pip               
+          python-version: "3.10"
+          cache: pip
 
       - name: Instalar dependencias
         run: |
@@ -33,3 +33,18 @@ jobs:
 
       - name: Ejecutar pruebas
         run: python -m pytest -ra
+
+  docker:
+    name: pytest en Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v5
+
+      - name: Construir la imagen
+        run: docker build -t customer360 .
+
+      - name: Ejecutar las pruebas dentro del contenedor
+        run: docker run --rm customer360
