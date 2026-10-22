@@ -1,0 +1,19 @@
+# Lo mismo que no va a Git tampoco va a la imagen.
+.git/
+.github/
+env/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+data/bronze/
+data/silver/
+data/gold/
+data/logs/
+*.duckdb
+*.duckdb.wal
+*.tmp
+customer360.zip
+docs/
