@@ -10,7 +10,7 @@ USING (
         p.batch_id
     FROM lote_clasificado c
     CROSS JOIN parametros_lote p
-    WHERE c.accion IN ('INSERT', 'UPDATE')
+    -- WHERE c.accion IN ('INSERT', 'UPDATE')
 ) AS s
 ON e.pago_id = s.pago_id
 
