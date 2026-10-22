@@ -1,5 +1,7 @@
 # Customer 360 — Pipeline incremental de pagos
 
+![Tests](https://github.com/nnthony/customer360/actions/workflows/tests.yml/badge.svg)
+
 Pipeline de datos en **Python + DuckDB** que construye una vista **Customer 360** (una fila por cliente) a partir de cuatro fuentes: clientes, servicios, pagos y contactos. Sigue la arquitectura *medallion* (**Raw → Bronze → Silver → Gold**).
 
 El proyecto empezó como un pipeline batch de carga completa y evolucionó a un **pipeline incremental**: los pagos llegan en lotes, se aplican con `MERGE` dentro de una transacción y el resultado es **idempotente**, **auditable** y **recuperable ante fallos**.
