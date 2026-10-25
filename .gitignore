@@ -16,6 +16,10 @@ data/silver/
 data/gold/
 data/logs/
 
+# Preparación local de cada publicación en Azure (Parquet exportados, manifiestos)
+data/publicacion/
+data/tmp_verificacion/
+
 # Estado DuckDB (base oficial local) y su write-ahead log
 *.duckdb
 *.duckdb.wal
@@ -29,6 +33,3 @@ customer360.zip
 .idea/
 .DS_Store
 Thumbs.db
-
-# NOTA: data/raw/ SÍ se versiona: son los datos de entrada de ejemplo que
-# usan el pipeline y las pruebas. Sin ellos el proyecto no es reproducible.
