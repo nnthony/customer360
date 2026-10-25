@@ -31,6 +31,11 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+import logging
+
+from src import azure_storage as az
+from src.publicar import PublicacionError, publicar
+
 from src.incremental import (
     FalloSimuladoError,
     abrir_estado,
@@ -87,17 +92,11 @@ def reconstruir_gold(con, fecha_corte, sql_path: Path = SQL_GOLD) -> dict:
 
 
 # ==========================================================================
-# Auditoría  <-- TU TAREA
+# Auditoría
 # ==========================================================================
 
 def registrar_auditoria(con, run_id: str, batch_id: str, fecha_inicio: datetime, conteos: dict) -> None:
     """Fila SUCCESS. Se llama DENTRO de la transacción, justo antes del COMMIT."""
-    # TODO 1: INSERT INTO auditoria_ejecuciones con estado 'SUCCESS'.
-    #   - fecha_fin = datetime.now()
-    #   - los 5 registros_* vienen en `conteos` (las claves se llaman igual que las columnas)
-    #   - mensaje_error = NULL
-    #   Usa parámetros `?` y nombra las columnas explícitamente en el INSERT.
-    # raise NotImplementedError("registrar_auditoria")
     con.execute(
         """
         INSERT INTO auditoria_ejecuciones (
@@ -134,15 +133,6 @@ def registrar_auditoria(con, run_id: str, batch_id: str, fecha_inicio: datetime,
 def registrar_fallo(con, run_id: str, batch_id: str, fecha_inicio: datetime,
                     conteos: dict, error: Exception) -> None:
     """Fila FAILED. Se llama DESPUÉS del ROLLBACK, fuera de la transacción de datos."""
-    # TODO 2: INSERT INTO auditoria_ejecuciones con estado 'FAILED'.
-    #   - mensaje_error = f"{type(error).__name__}: {error}"
-    #   - registros_entrada = conteos.get("registros_entrada")  (puede no conocerse)
-    #   - insertados / actualizados / ignorados / rechazados: ¿qué valor corresponde,
-    #     si el ROLLBACK deshizo todo? Decide y justifícalo en un comentario.
-    #
-    # Pregunta para pensar: si llamaras a esta función DENTRO del try de la
-    # transacción, antes del ROLLBACK, ¿qué pasaría con la fila FAILED?
-    # raise NotImplementedError("registrar_fallo")
     con.execute(
         """
         INSERT INTO auditoria_ejecuciones (
@@ -270,6 +260,24 @@ def _fallo_simulado(con) -> None:
     raise FalloSimuladoError("fallo simulado antes del COMMIT (--simular-fallo)")
 
 
+def _publicar(base_dir: Path, fecha_corte: str, resultados: list, debug: bool) -> int:
+    """Publica en el Data Lake. Se llama SOLO si todos los lotes terminaron en SUCCESS."""
+    logging.getLogger("azure.identity").setLevel(logging.ERROR)
+    ejecucion_id = str(uuid.uuid4())
+    try:
+        fs = az.obtener_contenedor()
+        m = publicar(fs, base_dir, ejecucion_id, fecha_corte, resultados)
+    except (az.AccesoAzureError, az.IntegridadError, PublicacionError) as e:
+        if debug:
+            raise
+        print(f"[publicación] FAILED  {type(e).__name__}: {e}", file=sys.stderr)
+        print("El estado local quedó confirmado; se puede volver a publicar.", file=sys.stderr)
+        return 1
+    print(f"[publicación] OK  {m['totales']['archivos']} archivos, {m['totales']['bytes']} bytes"
+          f"  ->  _manifiestos/ejecucion_{ejecucion_id}.json")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Pipeline incremental Customer 360")
     parser.add_argument("--lote", nargs="+", required=True,
@@ -278,10 +286,14 @@ def main(argv=None) -> int:
     parser.add_argument("--base-dir", default=str(RAIZ_PROYECTO / "data"))
     parser.add_argument("--simular-fallo", action="store_true",
                         help="Lanza un error justo antes del COMMIT (prueba de recuperación)")
+    parser.add_argument("--publicar", action="store_true",
+                        help="Al terminar con éxito, publica en el Data Lake "
+                             "(requiere AZURE_STORAGE_ACCOUNT y az login)")
     parser.add_argument("--debug", action="store_true", help="Muestra el traceback completo")
     args = parser.parse_args(argv)
 
     hook = _fallo_simulado if args.simular_fallo else None
+    resultados = []
     for ruta in sorted(args.lote):
         try:
             r = procesar_lote(Path(args.base_dir), Path(ruta), args.fecha_corte, antes_de_commit=hook)
@@ -289,13 +301,17 @@ def main(argv=None) -> int:
             if args.debug:
                 raise
             print(f"[{Path(ruta).name}] FAILED  {type(e).__name__}: {e}", file=sys.stderr)
-            return 1
+            return 1          # un lote falló: se sale ANTES de llegar a publicar
+        resultados.append(r)
         print(
             f"[{r['batch_id']:<9}] SUCCESS  entrada={r['registros_entrada']:>3}  "
             f"ins={r['registros_insertados']:>3}  upd={r['registros_actualizados']:>3}  "
             f"ign={r['registros_ignorados']:>3}  rech={r['registros_rechazados']:>3}  |  "
             f"gold {r['gold']['filas']} filas, elegibles={r['gold']['elegibles']}"
         )
+
+    if args.publicar:
+        return _publicar(Path(args.base_dir), args.fecha_corte, resultados, args.debug)
     return 0
 
 
