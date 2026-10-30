@@ -1,0 +1,33 @@
+{
+    "name": "ds_adls_origen",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "ls_adls_customer360",
+            "type": "LinkedServiceReference"
+        },
+        "parameters": {
+            "p_directorio": {
+                "type": "string"
+            },
+            "p_archivo": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "type": "Binary",
+        "typeProperties": {
+            "location": {
+                "type": "AzureBlobFSLocation",
+                "fileName": {
+                    "value": "@dataset().p_archivo",
+                    "type": "Expression"
+                },
+                "folderPath": {
+                    "value": "@dataset().p_directorio",
+                    "type": "Expression"
+                },
+                "fileSystem": "customer360"
+            }
+        }
+    }
+}

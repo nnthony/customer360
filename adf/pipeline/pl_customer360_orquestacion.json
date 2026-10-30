@@ -1,0 +1,239 @@
+{
+    "name": "pl_customer360_orquestacion",
+    "properties": {
+        "activities": [
+            {
+                "name": "GM_Verificar_Origen",
+                "type": "GetMetadata",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.00:10:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "dataset": {
+                        "referenceName": "ds_adls_origen",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "p_directorio": "@pipeline().parameters.p_directorio_origen",
+                            "p_archivo": {
+                                "value": "@pipeline().parameters.p_archivo",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    "fieldList": [
+                        "exists",
+                        "size"
+                    ],
+                    "storeSettings": {
+                        "type": "AzureBlobFSReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                    },
+                    "formatSettings": {
+                        "type": "BinaryReadSettings"
+                    }
+                }
+            },
+            {
+                "name": "IF_Archivo_Existe",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "GM_Verificar_Origen",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@activity('GM_Verificar_Origen').output.exists",
+                        "type": "Expression"
+                    },
+                    "ifFalseActivities": [
+                        {
+                            "name": "FAIL_Origen_No_Existe",
+                            "type": "Fail",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "message": {
+                                    "value": "@concat('No existe el archivo de origen: customer360/', pipeline().parameters.p_directorio_origen, '/', pipeline().parameters.p_archivo, ' (run_id ', pipeline().parameters.p_run_id, ')')",
+                                    "type": "Expression"
+                                },
+                                "errorCode": "ORIGEN_NO_EXISTE"
+                            }
+                        }
+                    ],
+                    "ifTrueActivities": [
+                        {
+                            "name": "COPY_Customer360",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.00:10:00",
+                                "retry": 2,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "BinarySource",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSReadSettings",
+                                        "recursive": false,
+                                        "deleteFilesAfterCompletion": false
+                                    },
+                                    "formatSettings": {
+                                        "type": "BinaryReadSettings"
+                                    }
+                                },
+                                "sink": {
+                                    "type": "BinarySink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSWriteSettings"
+                                    }
+                                },
+                                "enableStaging": false,
+                                "skipErrorFile": {
+                                    "dataInconsistency": false
+                                },
+                                "validateDataConsistency": true,
+                                "dataIntegrationUnits": 4
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "ds_adls_origen",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "p_directorio": "@pipeline().parameters.p_directorio_origen",
+                                        "p_archivo": "@pipeline().parameters.p_archivo"
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "ds_adls_destino",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "p_directorio": {
+                                            "value": "@concat(pipeline().parameters.p_directorio_destino, '/', pipeline().parameters.p_run_id)",
+                                            "type": "Expression"
+                                        },
+                                        "p_archivo": {
+                                            "value": "@pipeline().parameters.p_archivo",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "GM_Verificar_Destino",
+                "type": "GetMetadata",
+                "dependsOn": [
+                    {
+                        "activity": "IF_Archivo_Existe",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.00:10:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "dataset": {
+                        "referenceName": "ds_adls_destino",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "p_directorio": "@concat(pipeline().parameters.p_directorio_destino, '/', pipeline().parameters.p_run_id)",
+                            "p_archivo": "@pipeline().parameters.p_archivo"
+                        }
+                    },
+                    "fieldList": [
+                        "exists",
+                        "size"
+                    ],
+                    "storeSettings": {
+                        "type": "AzureBlobFSReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                    },
+                    "formatSettings": {
+                        "type": "BinaryReadSettings"
+                    }
+                }
+            },
+            {
+                "name": "IF_Destino_Valido",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "GM_Verificar_Destino",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@and(\n    activity('GM_Verificar_Destino').output.exists,\n    and(\n        greater(coalesce(activity('GM_Verificar_Destino').output?.size, 0), 0),\n        equals(activity('GM_Verificar_Destino').output?.size, activity('GM_Verificar_Origen').output?.size)\n    )\n)",
+                        "type": "Expression"
+                    },
+                    "ifFalseActivities": [
+                        {
+                            "name": "FAIL_Destino_Invalido",
+                            "type": "Fail",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "message": {
+                                    "value": "@concat('Verificación del destino fallida: customer360/', pipeline().parameters.p_directorio_destino, '/', pipeline().parameters.p_run_id, '/', pipeline().parameters.p_archivo, ' exists=', string(activity('GM_Verificar_Destino').output.exists), ' size=', string(coalesce(activity('GM_Verificar_Destino').output?.size, 0)))",
+                                    "type": "Expression"
+                                },
+                                "errorCode": "DESTINO_INVALIDO"
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "parameters": {
+            "p_directorio_origen": {
+                "type": "string"
+            },
+            "p_archivo": {
+                "type": "string"
+            },
+            "p_directorio_destino": {
+                "type": "string",
+                "defaultValue": "_adf/procesados"
+            },
+            "p_run_id": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "lastPublishTime": "2026-10-28T04:30:17Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}

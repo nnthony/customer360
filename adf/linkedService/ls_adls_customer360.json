@@ -1,0 +1,10 @@
+{
+    "name": "ls_adls_customer360",
+    "properties": {
+        "annotations": [],
+        "type": "AzureBlobFS",
+        "typeProperties": {
+            "url": "https://stc360acp2026.dfs.core.windows.net/"
+        }
+    }
+}
